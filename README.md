@@ -1,0 +1,2 @@
+# NisaSimulator
+積立NISAで買う銘柄を選ぶのが面倒な人が使う為のアプリのソース。実際に動かしてみるにはGoogle Spread Sheet を動かすためのキーが必要。
