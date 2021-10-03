@@ -102,7 +102,7 @@ def make_graph(scale=True):
     return plot_fig
 
 
-def calculate_portfolio(df) -> dict:
+def calculate_portfolio(df, method=0) -> dict:
     """[summary]
     Args:
         df ([pandas.DataFrame]): [description]
@@ -114,30 +114,19 @@ def calculate_portfolio(df) -> dict:
 
     ef = EfficientFrontier(mu, S)
     # method の値によって使うやつを変える
-    # try:
-    #     if method == 0:
-    #         buy = ef.efficient_return(target_return=0.1)
-    #     elif method == 1:
-    #         buy = ef.min_volatility()
-    #     elif method == 2:
-    #         buy = ef.max_sharpe(risk_free_rate=0.02)
-    #     else:
-    #         buy = ef.efficient_return(target_return=0.1)
-    # except Exception:
-    #     b = {"error": (0, 0, "Error")}
-    #     return b
-
     try:
-        buy = ef.efficient_return(target_return=0.1)
-    except Exception:
-        try:
+        if method == 0:
+            buy = ef.efficient_return(target_return=0.1)
+        elif method == 1:
             buy = ef.min_volatility()
-        except Exception:
-            try:
-                buy = ef.max_sharpe(risk_free_rate=0.02)
-            except Exception:
-                b = {"erroe": (0, 0, "Error")}
-                return b
+        elif method == 2:
+            buy = ef.max_sharpe(risk_free_rate=0.02)
+        else:
+            buy = ef.efficient_return(target_return=0.1)
+    except Exception:
+        b = {"error": (0, 0, "Error")}
+        return b
+
     b = dict()
     for k in buy.keys():
         sbi = NameBase.query.with_entities(
