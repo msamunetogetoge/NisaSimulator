@@ -1,0 +1,122 @@
+from flask import Flask, json, jsonify
+from flask import render_template
+from utils.get_finance import get_datas_from_db, make_graph, calculate_portfolio, get_result_from_db
+from flask_sqlalchemy import SQLAlchemy
+import pandas as pd
+import datetime
+import db.Model as Model
+
+
+app = Flask(__name__)
+app.config.from_object('config.BaseConfig')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db/nisa.db"
+db = SQLAlchemy(app)
+
+
+def RegisterResult():
+    """[summary] 本日分の計算結果をdbに登録する。
+    """
+    df = get_datas_from_db()
+    buy = calculate_portfolio(df)
+    d = datetime.date.today()
+    try:
+        for index in buy.keys():
+            if(Model.CalculateResult.query.filter_by(date=d, name=index).first() is None):
+                r = Model.CalculateResult(
+                    date=d,
+                    name=index,
+                    resultpercent=int(buy[index][0] * 100),
+                    resultint=buy[index][1])
+                Model.db.session.add(r)
+        Model.db.session.commit()
+    except Exception as e:
+        print(f"RegisterResult:db commit に失敗しました。{e}")
+        Model.db.session.rollback()
+    return
+
+
+@app.route("/")
+async def index():
+    return render_template("index.html")
+
+
+@app.route("/data_update", methods=["POST"])
+def initapp():
+    """[summary] dbに値が入っていれば更新、無ければデータ作成
+    """
+    try:
+        Model.db.create_all()
+        if(Model.NameBase.query.count() == 0):
+            print("CreateNameBase")
+            Model.CreateNameBase()
+        if(Model.GraphBase.query.count() == 0):
+            Model.CreateGraphBase()
+            print("CreateGraphBase")
+        else:
+            print("UpdateGraphBase")
+            Model.UpdateGraphBase()
+        RegisterResult()
+    except Exception as e:
+        print(f"initapp false : {e}")
+        return jsonify(False)
+    return jsonify(True)
+
+
+@app.route("/need_init", methods=["POST"])
+def need_init():
+    """[summary] GraphBaseのデータが最新どうかで、初期化が必要か調べる(更新日が今日か？ and spread sheet でデータを取得してみて最後のデータの日付と、dbのデータの日付が一致するか調べる)
+    Returns:
+        [type]bool: [description] true=>need init, false not need init
+    """
+    try:
+        # 更新日が今日ならnot need init
+        from_time = Model.GraphBase.query.with_entities(
+            Model.GraphBase.date).order_by(Model.GraphBase.updatetime.desc()).first()[0]
+        if(from_time.date() == datetime.date.today()):
+            return jsonify(False)
+        # db の最後のデータを取得
+        from_time = Model.GraphBase.query.with_entities(
+            Model.GraphBase.date).order_by(Model.GraphBase.date.desc()).first()[0]
+        from_time = from_time.date()
+
+        # 週末を挟んでる時はnot need init
+        end_time = datetime.date.today()
+        time_delt = end_time - from_time
+        if(end_time.weekday() in [5, 6] and time_delt.days < 3):
+            return jsonify(False)
+        # dataを取得してみて、dbの最終データと取得した最新データが一致してればnot need init
+        names = Model.NameBase.query.with_entities(
+            Model.NameBase.searchname, Model.NameBase.name).all()
+        for n in names:
+            data = Model.make_series(
+                name=n[0], displayname=n[1], from_time=from_time, now_time=end_time)
+            if data.index[-1] != from_time:
+                return jsonify(True)
+    except Exception:
+        # エラーが出るのに何度も更新されたくないので、エラーが出たらデータ更新不要にする
+        return jsonify(False)
+    return jsonify(False)
+
+
+@app.route("/plot")
+def plot():
+    g = make_graph()
+
+    return render_template(
+        'plot.html', graph=g)
+
+
+@app.route("/ranking")
+def get_ranking():
+    # dbからデータを読み込むだけにする
+    buy = get_result_from_db()
+    s = sum([p["resultint"] for p in buy])
+
+    return render_template(
+        'ranking.html', buy=buy, amount=s)
+
+
+if __name__ == "__main__":
+    app.run(host='127.0.0.1', port=8080, debug=True)

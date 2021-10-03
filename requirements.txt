@@ -1,0 +1,10 @@
+Flask==2.0.1
+Flask[async]
+Flask-SQLAlchemy==2.5.1
+gspread==3.7.0
+numpy==1.21.0
+oauth2client==4.1.3
+oauthlib==3.1.1
+pandas==1.3.0
+plotly==5.1.0
+pyportfolioopt==1.4.2

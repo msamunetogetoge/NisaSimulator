@@ -1,0 +1,15 @@
+{%- extends "layout.html" %}
+{% block landing_page_title %}
+主要銘柄のグラフ
+{% endblock %}
+{% block contents %}
+<div class="container">
+    {% autoescape off %}
+    {{graph}}
+    {% endautoescape %}
+    <p>
+        * データは、１年あたりの平均値を0に調整したもの
+    </p>
+</div>
+
+{% endblock %}

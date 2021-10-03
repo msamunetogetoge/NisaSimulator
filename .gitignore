@@ -1,5 +1,8 @@
 # key
 *.json
+#private file
+readme.txt
+todo.txt
 # gcloudignore
 .gcloudignore
 # Byte-compiled / optimized / DLL files
