@@ -6,6 +6,8 @@ import pandas as pd
 import datetime
 import db.Model as Model
 
+from config import BaseConfig
+
 
 app = Flask(__name__)
 app.config.from_object('config.BaseConfig')
@@ -15,11 +17,11 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db/nisa.db"
 db = SQLAlchemy(app)
 
 
-def RegisterResult():
+def RegisterResult(method=0):
     """[summary] 本日分の計算結果をdbに登録する。
     """
     df = get_datas_from_db()
-    buy = calculate_portfolio(df)
+    buy = calculate_portfolio(df, method)
     d = datetime.date.today()
     try:
         for index in buy.keys():
@@ -27,6 +29,7 @@ def RegisterResult():
                 r = Model.CalculateResult(
                     date=d,
                     name=index,
+                    method_name= BaseConfig.method_dict[method],
                     resultpercent=int(buy[index][0] * 100),
                     resultint=buy[index][1])
                 Model.db.session.add(r)

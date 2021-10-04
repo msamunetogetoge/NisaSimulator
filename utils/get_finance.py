@@ -69,6 +69,7 @@ def get_result_from_db() -> list(dict()):
             result_dict = {
                 "date": day_str,
                 "name": n[0],
+                "method_name": result.method_name,
                 "searchkeyword": n[1],
                 "resultpercent": result.resultpercent,
                 "resultint": result.resultint}
