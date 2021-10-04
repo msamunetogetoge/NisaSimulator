@@ -46,10 +46,9 @@ class CalculateResult(db.Model):
     """
     date = db.Column(db.DateTime, primary_key=True)
     name = db.Column(db.String, primary_key=True)
-    method_name = db.Column(db.String,default =BaseConfig.method_dict[0])
     resultpercent = db.Column(db.Float)
     resultint = db.Column(db.Integer)
-
+    method_name = db.Column(db.Integer,default =0)
 
 def CreateTables():
     """[summary]
