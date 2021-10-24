@@ -8,6 +8,8 @@ class BaseConfig():
     now = datetime.datetime.now()
     starttime = now - relativedelta.relativedelta(years=1)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JSON_AS_ASCII = False
+    
     # method <-> 名前対応辞書
     method_dict = {0:"分散最小化(リターン制約あり)", 1:"分散最小化", 2:"シャープ・レシオ最大化"}
     # Auth Setting

@@ -1,4 +1,5 @@
-from flask import Flask, json, jsonify
+from types import MethodDescriptorType
+from flask import Flask, json, jsonify, request
 from flask import render_template
 from utils.get_finance import get_datas_from_db, make_graph, calculate_portfolio, get_result_from_db
 from flask_sqlalchemy import SQLAlchemy
@@ -16,7 +17,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db/nisa.db"
 db = SQLAlchemy(app)
 
-
 def RegisterResult(method=0):
     """[summary] 本日分の計算結果をdbに登録する。
     """
@@ -24,12 +24,13 @@ def RegisterResult(method=0):
     buy = calculate_portfolio(df, method)
     d = datetime.date.today()
     try:
+        # 各indexの計算値(既に存在しない時のみ)をdbに登録する
         for index in buy.keys():
             if(Model.CalculateResult.query.filter_by(date=d, name=index).first() is None):
                 r = Model.CalculateResult(
                     date=d,
                     name=index,
-                    method_name= BaseConfig.method_dict[method],
+                    method_name= method,
                     resultpercent=int(buy[index][0] * 100),
                     resultint=buy[index][1])
                 Model.db.session.add(r)
@@ -51,16 +52,21 @@ def initapp():
     """
     try:
         Model.db.create_all()
+        #NameBaseを作る
         if(Model.NameBase.query.count() == 0):
             print("CreateNameBase")
             Model.CreateNameBase()
+        #GraphBaseを作る
         if(Model.GraphBase.query.count() == 0):
             Model.CreateGraphBase()
             print("CreateGraphBase")
         else:
             print("UpdateGraphBase")
             Model.UpdateGraphBase()
-        RegisterResult()
+        #CalculateResultを作る
+        for k in BaseConfig.method_dict.keys():
+            RegisterResult(method=k)
+
     except Exception as e:
         print(f"initapp false : {e}")
         return jsonify(False)
@@ -110,16 +116,27 @@ def plot():
     return render_template(
         'plot.html', graph=g)
 
-
 @app.route("/ranking")
 def get_ranking():
     # dbからデータを読み込むだけにする
     buy = get_result_from_db()
     s = sum([p["resultint"] for p in buy])
-
+    today = buy[0]["date"]
     return render_template(
-        'ranking.html', buy=buy, amount=s)
+        'ranking.html',today = today, amount=s, method = BaseConfig.method_dict[buy[0]["method_name"]], methods = BaseConfig.method_dict)
 
+
+@app.route("/buy_json",methods=["POST"])
+def json_test():
+    try:
+        method = int(request.form["method"])
+    except ValueError:
+        method=0
+    if method in  list(BaseConfig.method_dict.keys()):
+        buy = get_result_from_db(method=method)
+    else:
+        buy = get_result_from_db()
+    return jsonify(buy)
 
 if __name__ == "__main__":
     app.run(host='127.0.0.1', port=8080, debug=True)

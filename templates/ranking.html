@@ -1,11 +1,59 @@
 {%- extends "layout.html" %}
+{% block styles %}
+<style>
+    #data_table_buy tbody td {
+        color: black;
+        text-align: left;
+    }
+
+    .design12 {
+        width: 100%;
+        text-align: center;
+        border-collapse: collapse;
+        border-spacing: 0;
+        background: #cdf4f0;
+    }
+
+    .design12 tr:nth-child(2n+1) {
+        background: #e9faf9;
+    }
+
+    .design12 th {
+        padding: 10px;
+        border: solid 1px #ffffff;
+        background: #778ca3;
+        color: #ffffff;
+    }
+
+    .design12 td {
+        padding: 10px;
+        border: solid 1px #ffffff;
+    }
+</style>
+{% endblock %}
 {% block landing_page_title %}
 ポートフォリオ
 {% endblock %}
 {% block contents %}
 <div class="container">
-    <table class="table table-hover table-dark">
-        本日({{buy[0]["date"]}})のおすすめ
+    <label for="method_select" class="h3">計算方法選択</label>
+    <div class="form-group form-inline">
+
+        <select id="method_select" class="form-control col-sm-3">
+            {% for key in methods.keys()%}
+            <option value="{{key}}">{{methods[key]}}</option>
+            {% endfor %}
+        </select>
+        <input type="button" id="switchbutton" class="btn btn-primary col-sm-2" value="表示切替">
+        <!-- <button id="switchbutton" class="btn btn-primary" type="button">表示切替</button> -->
+    </div>
+    <div class="h2" id="display_date">
+        {{today}}のおすすめ
+    </div>
+    <!-- <table class="table table-hover table-dark">
+        <div id="method">
+            手法 = {{method}}
+        </div>
         <thead>
             <tr>
                 <th>インデックス名</th>
@@ -37,7 +85,71 @@
                 <td>{{amount}}</td>
             </tr>
         </tbody>
+    </table> -->
+    <!-- data table -->
+    <table id="data_table_buy" class="table design12">
+        <thead>
+            <tr>
+                <th>インデックス名</th>
+                <th>SBI 検索パラメータ</th>
+                <th>購入割合(%)</th>
+                <th>円</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
     </table>
+
     * 33333円を使う想定
+
 </div>
+
+
+{% endblock %}
+{% block scripts %}
+<script type="text/javascript">
+
+    // method を指定しておすすめテーブルを表示する
+    function display_table(method) {
+        $("#data_table_buy").DataTable({
+            info: false,
+            paging: false,
+            lengthChange: false,
+            ordering: false,
+            searching: false,
+            processing: true,
+            serverSide: true,
+            destroy: true,
+            ajax: {
+                type: "POST",
+                url: "{{ url_for( 'json_test' ) }}",
+                data: function (d) {
+                    return $.extend({}, d, {
+                        "method": method
+                    });
+                },
+                dataSrc: "",
+            },
+            // "data": data,
+            "columns": [
+                { data: "name" },
+                { data: "searchkeyword" },
+                { data: "resultpercent" },
+                { data: "resultint" },
+            ]
+        }
+        );
+    }
+    // ページ読み込み時、買う銘柄のおすすめを表示する
+    $(document).ready(function () {
+        display_table(0);
+
+    });
+    // 表示切替ボタンを押したら、選ばれている手法のデータに切り替える
+    $("#switchbutton").click(function () {
+        var method = $("#method_select").val();
+        display_table(method);
+    });
+</script>
 {% endblock %}
