@@ -22,12 +22,7 @@ The above copyright notice and this permission notice shall be included in all c
     <title>
         Nisa Simulator
     </title>
-    <!-- jquery  -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
-        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-    <!--  plotly JS Files  -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <meta content='width=device-width, initial-scale=1.0, shrink-to-fit=no' name='viewport' />
+
     <!--     Fonts and icons     -->
     <link rel="stylesheet" type="text/css"
         href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons" />
@@ -39,6 +34,14 @@ The above copyright notice and this permission notice shall be included in all c
     <!-- bootstrap4.6 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
         integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+    <!-- DataTables css -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css">
+    <!-- plotly は最初に読み込む必要がある -->
+    <!--  plotly JS Files  -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <meta content='width=device-width, initial-scale=1.0, shrink-to-fit=no' name='viewport' />
+
+
 
     <style>
         #centered_contents {
@@ -175,6 +178,13 @@ The above copyright notice and this permission notice shall be included in all c
     <script src="{{ url_for('static', filename='js/plugins/nouislider.min.js' ) }}" type="text/javascript"></script>
     <!-- Control Center for Material Kit: parallax effects, scripts for the example pages etc -->
     <script src="{{ url_for('static', filename='js/material-kit.js' ) }}" type="text/javascript"></script>
+
+    <!-- DataTables js -->
+    <script type="text/javascript" charset="utf8"
+        src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    <!-- DataTables js(bootstrap4) -->
+    <script type="text/javascript" charset="utf8"
+        src="https://cdn.datatables.net/1.11.3/js/dataTables.bootstrap4.min.js"></script>
 </body>
 <script>
     //データ更新が必要ない時は、データ更新ボタンを表示しない
@@ -213,6 +223,9 @@ The above copyright notice and this permission notice shall be included in all c
                 $('#close_button').click();
             });
     });
+
 </script>
+{% block scripts %}
+{% endblock %}
 
 </html>

@@ -43,12 +43,13 @@ class CalculateResult(db.Model):
     name: Graphのname
     resultpercent:パーセント形式の結果
     resultint:数値形式の結果
+    method_name: 計算方式
     """
     date = db.Column(db.DateTime, primary_key=True)
     name = db.Column(db.String, primary_key=True)
     resultpercent = db.Column(db.Float)
     resultint = db.Column(db.Integer)
-
+    method_name = db.Column(db.Integer,default =0, primary_key=True)
 
 def CreateTables():
     """[summary]

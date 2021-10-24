@@ -51,7 +51,7 @@ def get_datas_from_db() -> pd.DataFrame:
     return df
 
 
-def get_result_from_db() -> list(dict()):
+def get_result_from_db(method=0 ) -> list(dict()):
     """[summary] dbのCalculateResultからデータを取得し、整形する
 
     Returns:
@@ -63,12 +63,14 @@ def get_result_from_db() -> list(dict()):
     for n in names:
         try:
             result = CalculateResult.query.filter(
-                CalculateResult.name == n[0]).order_by(CalculateResult.date.desc()).first()
+                CalculateResult.name == n[0]).filter(CalculateResult.method_name == method).order_by(CalculateResult.date.desc()).first()
+            print(f"query by method = {method}, name = {n[0]}, result = {result}")
             day = result.date
             day_str = day.strftime('%Y/%m/%d')
             result_dict = {
                 "date": day_str,
                 "name": n[0],
+                "method_name": result.method_name,
                 "searchkeyword": n[1],
                 "resultpercent": result.resultpercent,
                 "resultint": result.resultint}
@@ -102,7 +104,7 @@ def make_graph(scale=True):
     return plot_fig
 
 
-def calculate_portfolio(df) -> dict:
+def calculate_portfolio(df, method=0) -> dict:
     """[summary]
     Args:
         df ([pandas.DataFrame]): [description]
@@ -114,30 +116,21 @@ def calculate_portfolio(df) -> dict:
 
     ef = EfficientFrontier(mu, S)
     # method の値によって使うやつを変える
-    # try:
-    #     if method == 0:
-    #         buy = ef.efficient_return(target_return=0.1)
-    #     elif method == 1:
-    #         buy = ef.min_volatility()
-    #     elif method == 2:
-    #         buy = ef.max_sharpe(risk_free_rate=0.02)
-    #     else:
-    #         buy = ef.efficient_return(target_return=0.1)
-    # except Exception:
-    #     b = {"error": (0, 0, "Error")}
-    #     return b
-
+    print(f"method = {method}")
     try:
-        buy = ef.efficient_return(target_return=0.1)
-    except Exception:
-        try:
+        if method == 0:
+            buy = ef.efficient_return(target_return=0.1)
+        elif method == 1:
+            print(f"method is {method} in elif metho == 1")
             buy = ef.min_volatility()
-        except Exception:
-            try:
-                buy = ef.max_sharpe(risk_free_rate=0.02)
-            except Exception:
-                b = {"erroe": (0, 0, "Error")}
-                return b
+        elif method == 2:
+            buy = ef.max_sharpe(risk_free_rate=0.02)
+        else:
+            buy = ef.efficient_return(target_return=0.1)
+    except Exception:
+        b = {"error": (0, 0, "Error")}
+        return b
+
     b = dict()
     for k in buy.keys():
         sbi = NameBase.query.with_entities(
