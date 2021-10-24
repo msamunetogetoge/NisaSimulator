@@ -51,7 +51,7 @@ def get_datas_from_db() -> pd.DataFrame:
     return df
 
 
-def get_result_from_db() -> list(dict()):
+def get_result_from_db(method=0 ) -> list(dict()):
     """[summary] dbのCalculateResultからデータを取得し、整形する
 
     Returns:
@@ -63,7 +63,8 @@ def get_result_from_db() -> list(dict()):
     for n in names:
         try:
             result = CalculateResult.query.filter(
-                CalculateResult.name == n[0]).order_by(CalculateResult.date.desc()).first()
+                CalculateResult.name == n[0]).filter(CalculateResult.method_name == method).order_by(CalculateResult.date.desc()).first()
+            print(f"query by method = {method}, name = {n[0]}, result = {result}")
             day = result.date
             day_str = day.strftime('%Y/%m/%d')
             result_dict = {
@@ -115,10 +116,12 @@ def calculate_portfolio(df, method=0) -> dict:
 
     ef = EfficientFrontier(mu, S)
     # method の値によって使うやつを変える
+    print(f"method = {method}")
     try:
         if method == 0:
             buy = ef.efficient_return(target_return=0.1)
         elif method == 1:
+            print(f"method is {method} in elif metho == 1")
             buy = ef.min_volatility()
         elif method == 2:
             buy = ef.max_sharpe(risk_free_rate=0.02)
