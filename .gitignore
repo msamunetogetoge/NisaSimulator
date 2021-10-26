@@ -1,3 +1,5 @@
+# db file
+*.db
 # key
 *.json
 #private file
