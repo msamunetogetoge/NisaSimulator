@@ -97,14 +97,6 @@ def need_init():
         time_delt = end_time - from_time
         if(end_time.weekday() in [5, 6] and time_delt.days < 3):
             return jsonify(False)
-        # dataを取得してみて、dbの最終データと取得した最新データが一致してればnot need init
-        names = Model.NameBase.query.with_entities(
-            Model.NameBase.searchname, Model.NameBase.name).all()
-        for n in names:
-            data = Model.make_series(
-                name=n[0], displayname=n[1], from_time=from_time, now_time=end_time)
-            if data.index[-1] != from_time:
-                return jsonify(True)
     except Exception:
         # エラーが出るのに何度も更新されたくないので、エラーが出たらデータ更新不要にする
         print(Exception)
