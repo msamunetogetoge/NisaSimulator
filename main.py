@@ -83,14 +83,16 @@ def need_init():
         # 更新日が今日ならnot need init
         from_time = Model.GraphBase.query.with_entities(
             Model.GraphBase.date).order_by(Model.GraphBase.updatetime.desc()).first()[0]
+        
         if(from_time.date() == datetime.date.today()):
             return jsonify(False)
-        # db の最後のデータを取得
+        # db の最後のデータの日付を取得
         from_time = Model.GraphBase.query.with_entities(
             Model.GraphBase.date).order_by(Model.GraphBase.date.desc()).first()[0]
         from_time = from_time.date()
 
-        # 週末を挟んでる時はnot need init
+        # 更新しようとする日が土日で、かつ最終データの日付と更新しようとする日の剥離が3日以内なら更新しない
+        # (金曜日にデータを取っていて、その週の日曜日にデータを更新しようとしてもしない)
         end_time = datetime.date.today()
         time_delt = end_time - from_time
         if(end_time.weekday() in [5, 6] and time_delt.days < 3):
@@ -105,6 +107,7 @@ def need_init():
                 return jsonify(True)
     except Exception:
         # エラーが出るのに何度も更新されたくないので、エラーが出たらデータ更新不要にする
+        print(Exception)
         return jsonify(False)
     return jsonify(False)
 
