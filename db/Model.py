@@ -115,6 +115,7 @@ def CreateGraphBase():
 def UpdateGraphBase():
     """[summary]
     add_datas()で最終更新日+1日から今日までのデータを取得し、dbに値を加える
+    insert で既にデータがある時は、insertしようとした日付に、updatetimeを更新する
     """
     try:
         from_time = GraphBase.query.with_entities(
@@ -127,15 +128,20 @@ def UpdateGraphBase():
     cols = list(df.columns)
     u = datetime.date.today()
 
+    # GraphBase にデータがあればupdate, なければinsert する
     for col in cols:
         data = df[col]
         for i, d in enumerate(data):
             try:
                 ind = data.index[i]
-                g = GraphBase(date=ind, name=col, close=d, updatetime=u)
-                if(GraphBase.query.filter_by(date=ind, name=col).first() is None):
-                    db.session.add(g)
+                new_close = GraphBase(date=ind, name=col, close=d, updatetime=u)
+                close = GraphBase.query.filter_by(date=ind, name=col).first()
+                if (close):
+                    db.session.merge(new_close)
+                else:
+                    db.session.add(new_close)
                 db.session.commit()
+            
             except Exception as e:
                 print(f"UpdateGraphBase でエラーが発生。{e}")
                 db.session.rollback()
@@ -249,9 +255,7 @@ def add_datas(from_time: datetime.datetime, now_time: datetime.datetime) -> pd.D
                                 from_time=from_time, now_time=now_time)
                 df = base.join(s)
                 base = df
-                print(f"base = {base.head()}")
         except Exception as e:
             print(f"{add_datas.__name__}: throw exception {e}")
             continue
-    print(f"{add_datas.__name__}: returns df, type = {type(df)}")
     return df
