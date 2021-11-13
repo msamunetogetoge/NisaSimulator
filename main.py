@@ -101,7 +101,7 @@ def need_init():
         # エラーが出るのに何度も更新されたくないので、エラーが出たらデータ更新不要にする
         print(Exception)
         return jsonify(False)
-    return jsonify(False)
+    return jsonify(True)
 
 
 @app.route("/plot")
