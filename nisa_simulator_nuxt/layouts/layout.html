@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>
+        Nisa Simulator
+    </title>
+
+    <!--     Fonts and icons     -->
+    <link rel="stylesheet" type="text/css"
+        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+    <!-- CSS Files -->
+    <link href="{{ url_for('static', filename='css/material-kit.css' ) }}" rel="stylesheet" type="text/css" />
+    <!-- my CSS Files -->
+    <link href="{{ url_for('static', filename='css/my.css' ) }}" rel="stylesheet" type="text/css" />
+    <!-- bootstrap4.6 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+        integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+    <!-- DataTables css -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css">
+    <!-- plotly は最初に読み込む必要がある -->
+    <!--  plotly JS Files  -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <meta content='width=device-width, initial-scale=1.0, shrink-to-fit=no' name='viewport' />
+
+
+
+    <style>
+        #centered_contents {
+            display: flex;
+            justify-content: center;
+        }
+
+        .err_message {
+            text-align: center;
+            color: red;
+        }
+    </style>
+    {% block styles %}
+    {% endblock %}
+</head>
+
+<body class="landing-page sidebar-collapse">
+    <nav class="navbar  navbar-transparent  fixed-top navbar-expand-lg" color-on-scroll="100" id="sectionsNav">
+        <div class="container">
+            <div class="navbar-translate">
+                <h3>
+                    {% block landing_page_title %}
+                    {% endblock %}
+                </h3>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" aria-expanded="false"
+                    aria-label="Toggle navigation" data-target="#navbarResponsive" aria-controls="navbarResponsive">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="navbar-toggler-icon"></span>
+                    <span class="navbar-toggler-icon"></span>
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+            <!-- ヘルプページ、モデル選択ページなどに飛ぶリンクを貼る-->
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="navbar-nav ">
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="" data-placement="bottom"
+                            href="{{ url_for( 'index' ) }}" data-original-title="トップページへ" rel="nofollow">
+                            <i class="material-icons">home</i>トップページ
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="" data-placement="bottom"
+                            href="{{ url_for( 'plot' ) }}" data-original-title="グラフを表示" rel="nofollow">
+                            <i class="material-icons">trending_up</i>グラフ表示
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="" data-placement="bottom"
+                            href="{{ url_for( 'get_ranking' ) }}" data-original-title="おすすめを表示" rel="nofollow">
+                            <i class="material-icons">list</i>ポートフォリオ表示
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="" data-placement="bottom"
+                            href="https://site0.sbisec.co.jp/marble/fund/powersearch/fundpsearch.do?Param7=other_3"
+                            data-original-title="SBI証券のページへ" rel="noopener noreferrer" target="_blank">
+                            <i class="material-icons">calculate</i>SBI証券ページ
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="btn btn-dark" id="data_update"><i
+                                class="material-icons">update</i>データ更新</button>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="" data-placement="bottom"
+                            href="https://twitter.com/masamunenoheya" target="_blank"
+                            data-original-title="Follow us on Twitter" rel="nofollow">
+                            <i class="fa fa-twitter"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" rel="tooltip" title="" data-placement="bottom"
+                            href="https://github.com/msamunetogetoge" target="_blank"
+                            data-original-title="Follow us on github" rel="nofollow">
+                            <i class="fa fa-github"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page-header header-filter " data-parallax="true" style="background-image: url('/static/img/bg2.jpg')">
+
+        {% block contents %}
+        {% endblock %}
+
+        <div class="modal" tabindex="-1" role="dialog" id="yesnoModal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 id="modal_title" class="modal-title">データ更新しますか？</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="close_button" type="button" class="btn btn-secondary"
+                            data-dismiss="modal">キャンセル</button>
+                        <button id="data_update_button" type="button" class="btn btn-primary">データ更新</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <footer class="footer footer-default">
+        <div class="container">
+            <div class="copyright float-right">
+                &copy;
+                <script>
+                    document.write(new Date().getFullYear())
+                </script>, made with <i class="material-icons">favorite</i> by
+                <a href="https://github.com/msamunetogetoge" target="_blank">Masamunenoheya</a>
+            </div>
+        </div>
+    </footer>
+    <!--   Core JS Files   -->
+    <script src="{{ url_for('static', filename='js/core/jquery.min.js' ) }}" type="text/javascript"></script>
+    <script src="{{ url_for('static', filename='js/core/popper.min.js' ) }}" type="text/javascript"></script>
+    <script src="{{ url_for('static', filename='js/core/bootstrap-material-design.min.js' ) }}"
+        type="text/javascript"></script>
+    <script src="{{ url_for('static', filename='js/plugins/moment.min.js' ) }}"></script>
+    <!-- my JS Files -->
+
+    <!--	Plugin for the Datepicker, full documentation here: https://github.com/Eonasdan/bootstrap-datetimepicker -->
+    <script src="{{ url_for('static', filename='js/plugins/bootstrap-datetimepicker.js' ) }}"
+        type="text/javascript"></script>
+    <!--  Plugin for the Sliders, full documentation here: http://refreshless.com/nouislider/ -->
+    <script src="{{ url_for('static', filename='js/plugins/nouislider.min.js' ) }}" type="text/javascript"></script>
+    <!-- Control Center for Material Kit: parallax effects, scripts for the example pages etc -->
+    <script src="{{ url_for('static', filename='js/material-kit.js' ) }}" type="text/javascript"></script>
+
+    <!-- DataTables js -->
+    <script type="text/javascript" charset="utf8"
+        src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    <!-- DataTables js(bootstrap4) -->
+    <script type="text/javascript" charset="utf8"
+        src="https://cdn.datatables.net/1.11.3/js/dataTables.bootstrap4.min.js"></script>
+</body>
+<script>
+    //データ更新が必要ない時は、データ更新ボタンを表示しない
+    $("#data_update").on("click", function () {
+        $.ajax({
+            url: "{{ url_for( 'need_init' ) }}",
+            contentType: 'application/json;charset=UTF-8',
+            type: 'POST'
+        }).done((data) => {
+            if (data == false) {
+                alert("データの更新は必要ありません。");
+            }
+            else {
+                $('#yesnoModal').modal()
+            }
+        }).fail((data) => {
+        }).always((data) => {
+        })
+    });
+    // initappでデータの更新に失敗しましたって出る？
+    $("#data_update_button").on("click", function () {
+        $('#modal_title').html("データ更新中");
+        $("#data_update_button").prop("disabled", true);
+        $.ajax({
+            url: "{{ url_for( 'initapp' ) }}",
+            contentType: 'application/json;charset=UTF-8',
+            timeout: 30000,
+            type: 'POST'
+        })
+            .done((data) => {
+            })
+            .fail((data) => {
+                alert("データの更新に失敗しました")
+            })
+            .always((data) => {
+                $('#close_button').click();
+            });
+    });
+
+</script>
+{% block scripts %}
+{% endblock %}
+
+</html>
