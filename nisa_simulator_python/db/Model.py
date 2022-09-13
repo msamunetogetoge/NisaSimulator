@@ -1,18 +1,26 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask import Flask
-import pandas as pd
 import datetime
-from nisa_simulator_python.config import BaseConfig
 import time
+
 import gspread
+import pandas as pd
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 
 
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///nisa.db"
-db = SQLAlchemy(app)
+from db_config import DBConfig
+
+# todo dbのアップデートなどが動くか確認する
+
+Base = declarative_base()
+engine = create_engine(DBConfig.db_uri, echo=True)
+Session = sessionmaker(bind=engine)
+
+# app = Flask(__name__)
+# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///nisa.db"
+# db = SQLAlchemy(app)
 
 
-class GraphBase(db.Model):
+class GraphData(Base):
     """[summary] グラフを描くためのモデル
     date: 年月日
     name:銘柄名
@@ -20,24 +28,27 @@ class GraphBase(db.Model):
     Args:
         db ([type]): [description]
     """
-    date = db.Column(db.DateTime, primary_key=True)
-    name = db.Column(db.String, primary_key=True)
-    close = db.Column(db.Float)
-    updatetime = db.Column(db.DateTime)
+    __table_name__ = "graph_data"
+    date = Column(DateTime, primary_key=True)
+    name = Column(String, primary_key=True)
+    close = Column(Float)
+    updatetime = Column(DateTime)
 
 
-class NameBase(db.Model):
+class NameBase(Base):
     """[summary]
     name: Graph のname
     namedisplay: SBIキーワードで表示する名前
     searchkeyword : pandas で検索するのにつかう第一引数
     """
-    name = db.Column(db.String, primary_key=True)
-    searchname = db.Column(db.String)
-    searchkeyword = db.Column(db.String)
+
+    __table_name__ = "name_base"
+    name = Column(String, primary_key=True)
+    searchname = Column(String)
+    searchkeyword = Column(String)
 
 
-class CalculateResult(db.Model):
+class CalculateResult(Base):
     """[summary]
     date: 年月日
     name: Graphのname
@@ -45,17 +56,19 @@ class CalculateResult(db.Model):
     resultint:数値形式の結果
     method_name: 計算方式
     """
-    date = db.Column(db.DateTime, primary_key=True)
-    name = db.Column(db.String, primary_key=True)
-    resultpercent = db.Column(db.Float)
-    resultint = db.Column(db.Integer)
-    method_name = db.Column(db.Integer,default =0, primary_key=True)
+    __table_name__ = "calculate_result"
+    date = Column(DateTime, primary_key=True)
+    name = Column(String, primary_key=True)
+    resultpercent = Column(Float)
+    resultint = Column(Integer)
+    method_name = Column(Integer, default=0, primary_key=True)
+
 
 def CreateTables():
     """[summary]
     dbとテーブルを作る
     """
-    db.create_all()
+    Base.metadata.create_all(engine)
     return
 
 
@@ -70,23 +83,25 @@ def CreateNameBase():
     name2disp["topix"] = ["topix", 'topix']
     name2disp["FTSE_Emerging"] = ["新興国株式インデックス・ファンド", 'VWO']
     name2disp["MSCI_World"] = ["先進国", 'VEA']
+
+    session = Session()
     for key in name2disp.keys():
         n = NameBase(
             name=key,
             searchkeyword=name2disp[key][0],
             searchname=name2disp[key][1])
-        db.session.add(n)
+        session.add(n)
     try:
-        db.session.commit()
+        session.commit()
     except Exception:
 
-        db.session.rollback()
+        session.rollback()
     return
 
 
-def CreateGraphBase():
+def CreateGraphData():
     """[summary]
-    今日から1年前までのデータ取得->GraphBase 登録する
+    今日から1年前までのデータ取得->GraphData 登録する
     """
     try:
         df = get_datas()
@@ -95,31 +110,32 @@ def CreateGraphBase():
     cols = list(df.columns)
     u = datetime.date.today()
     try:
+        session = Session()
         for col in cols:
             data = df[col]
             for i, d in enumerate(data):
                 ind = data.index[i]
-                g = GraphBase(date=ind, name=col, close=d, updatetime=u)
-                db.session.add(g)
-        db.session.commit()
+                g = GraphData(date=ind, name=col, close=d, updatetime=u)
+                session.add(g)
+        session.commit()
     except Exception:
-        db.session.rollback()
+        session.rollback()
     try:
-        gs = GraphBase.query.filter(GraphBase.updatetime != u).all()
-        db.session.delete(gs)
+        gs = GraphData.query.filter(GraphData.updatetime != u).all()
+        session.delete(gs)
     except Exception:
-        db.session.rollback()
+        session.rollback()
     return
 
 
-def UpdateGraphBase():
+def UpdateGraphData():
     """[summary]
     add_datas()で最終更新日+1日から今日までのデータを取得し、dbに値を加える
     insert で既にデータがある時は、insertしようとした日付に、updatetimeを更新する
     """
     try:
-        from_time = GraphBase.query.with_entities(
-            GraphBase.date).order_by(GraphBase.date.desc()).first()[0]
+        from_time = GraphData.query.with_entities(
+            GraphData.date).order_by(GraphData.date.desc()).first()[0]
         now_time = datetime.datetime.now()
         df = add_datas(from_time=from_time, now_time=now_time)
     except Exception as e:
@@ -128,27 +144,29 @@ def UpdateGraphBase():
     cols = list(df.columns)
     u = datetime.date.today()
 
-    # GraphBase にデータがあればupdate, なければinsert する
+    # GraphData にデータがあればupdate, なければinsert する
+    session = Session()
     for col in cols:
         data = df[col]
         for i, d in enumerate(data):
             try:
                 ind = data.index[i]
-                new_close = GraphBase(date=ind, name=col, close=d, updatetime=u)
-                close = GraphBase.query.filter_by(date=ind, name=col).first()
+                new_close = GraphData(date=ind, name=col,
+                                      close=d, updatetime=u)
+                close = GraphData.query.filter_by(date=ind, name=col).first()
                 if (close):
-                    db.session.merge(new_close)
+                    session.merge(new_close)
                 else:
-                    db.session.add(new_close)
-                db.session.commit()
-            
+                    session.add(new_close)
+                session.commit()
+
             except Exception as e:
-                print(f"UpdateGraphBase でエラーが発生。{e}")
-                db.session.rollback()
+                print(f"UpdateGraphData でエラーが発生。{e}")
+                session.rollback()
     return
 
 
-def make_series(name: str, displayname: str, from_time: datetime.datetime = BaseConfig.starttime, now_time: datetime.datetime = datetime.datetime.today()) -> pd.Series:
+def make_series(name: str, displayname: str, from_time: datetime.datetime = DBConfig.starttime, now_time: datetime.datetime = datetime.datetime.today()) -> pd.Series:
     """[summary] spread sheet で、from_timeから、now_timeの期間のインデックスのデータを取得し、pd.series を返す。デフォルトは本日から一年前まで
 
     Args:
@@ -158,8 +176,8 @@ def make_series(name: str, displayname: str, from_time: datetime.datetime = Base
         [type]pandas.Series: [description] index,name付きのpandas.Series
     """
     try:
-        gc = gspread.authorize(BaseConfig.credentials)
-        sh = gc.open(BaseConfig.file_name)
+        gc = gspread.authorize(DBConfig.credentials)
+        sh = gc.open(DBConfig.file_name)
         start = from_time
         start_year = start.year
         start_month = start.month
@@ -173,7 +191,7 @@ def make_series(name: str, displayname: str, from_time: datetime.datetime = Base
         end_day = end.day
         end_string = f"DATE({end_year},{end_month},{end_day})"
         command = f'=GoogleFinance("{name}","close",{start_string},{end_string},"DAILY")'
-        ws = sh.worksheet(BaseConfig.sheet_name)
+        ws = sh.worksheet(DBConfig.sheet_name)
         # セルの初期化
         ws.update_acell("A1", "")
         ws.update_acell("A1", command)

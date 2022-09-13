@@ -1,6 +1,6 @@
-Flask==2.2.2
-Flask[async]
-Flask-SQLAlchemy==2.5.1
+fastapi
+uvicorn[standard]
+sqlalchemy=1.4
 gspread==5.4.0
 numpy==1.23.2
 oauth2client==4.1.3

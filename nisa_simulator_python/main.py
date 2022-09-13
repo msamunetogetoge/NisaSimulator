@@ -56,13 +56,13 @@
 #         if(Model.NameBase.query.count() == 0):
 #             print("CreateNameBase")
 #             Model.CreateNameBase()
-#         #GraphBaseを作る
-#         if(Model.GraphBase.query.count() == 0):
-#             Model.CreateGraphBase()
-#             print("CreateGraphBase")
+#         #GraphDataを作る
+#         if(Model.GraphData.query.count() == 0):
+#             Model.CreateGraphData()
+#             print("CreateGraphData")
 #         else:
-#             print("UpdateGraphBase")
-#             Model.UpdateGraphBase()
+#             print("UpdateGraphData")
+#             Model.UpdateGraphData()
 #         #CalculateResultを作る
 #         for k in BaseConfig.method_dict.keys():
 #             RegisterResult(method=k)
@@ -75,20 +75,20 @@
 
 # @app.route("/need_init", methods=["POST"])
 # def need_init():
-#     """[summary] GraphBaseのデータが最新どうかで、初期化が必要か調べる(更新日が今日か？ and spread sheet でデータを取得してみて最後のデータの日付と、dbのデータの日付が一致するか調べる)
+#     """[summary] GraphDataのデータが最新どうかで、初期化が必要か調べる(更新日が今日か？ and spread sheet でデータを取得してみて最後のデータの日付と、dbのデータの日付が一致するか調べる)
 #     Returns:
 #         [type]bool: [description] true=>need init, false not need init
 #     """
 #     try:
 #         # 更新日が今日ならnot need init
-#         from_time = Model.GraphBase.query.with_entities(
-#             Model.GraphBase.date).order_by(Model.GraphBase.updatetime.desc()).first()[0]
-        
+#         from_time = Model.GraphData.query.with_entities(
+#             Model.GraphData.date).order_by(Model.GraphData.updatetime.desc()).first()[0]
+
 #         if(from_time.date() == datetime.date.today()):
 #             return jsonify(False)
 #         # db の最後のデータの日付を取得
-#         from_time = Model.GraphBase.query.with_entities(
-#             Model.GraphBase.date).order_by(Model.GraphBase.date.desc()).first()[0]
+#         from_time = Model.GraphData.query.with_entities(
+#             Model.GraphData.date).order_by(Model.GraphData.date.desc()).first()[0]
 #         from_time = from_time.date()
 
 #         # 更新しようとする日が土日で、かつ最終データの日付と更新しようとする日の剥離が3日以内なら更新しない
@@ -136,6 +136,7 @@
 # if __name__ == "__main__":
 #     app.run(host='127.0.0.1', port=8080, debug=True)
 
+# todo データアップデート、グラフ作成、ポートフォリオ計算のapiパス、を作成、実装する
 
 from fastapi import FastAPI
 
@@ -145,4 +146,3 @@ app = FastAPI()
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
-

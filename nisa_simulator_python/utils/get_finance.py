@@ -1,14 +1,14 @@
 import pandas as pd
-from db.Model import GraphBase, NameBase, CalculateResult
 
-from pypfopt.efficient_frontier import EfficientFrontier
-from pypfopt import expected_returns
-from pypfopt import risk_models
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from calculate_methods import *
+from calculate_methods import ICalculateMethod
+from db.Model import GraphData, NameBase, CalculateResult
+
+# todo query_with_entity 等がsqlalchemy でも使えるかチェックする
+
 
 def scalling(X: pd.Series) -> pd.Series:
     return (X - X.mean()) / X.mean()
@@ -21,13 +21,13 @@ def get_series_from_db(col_name: str) -> pd.Series:
         col_name (str): [description] 欲しいデータの名前( NameBase.name )
 
     Returns:
-        pd.Series: [description] index: GraphBase.date, name: GraphBase.name, value GraphBase.close
+        pd.Series: [description] index: GraphData.date, name: GraphData.name, value GraphData.close
     """
-    col_date = GraphBase.query.with_entities(
-        GraphBase.date).filter_by(name=col_name).all()
+    col_date = GraphData.query.with_entities(
+        GraphData.date).filter_by(name=col_name).all()
     col_date = [d[0] for d in col_date]
-    col_close = GraphBase.query.with_entities(
-        GraphBase.close).filter_by(name=col_name).all()
+    col_close = GraphData.query.with_entities(
+        GraphData.close).filter_by(name=col_name).all()
     col_close = [c[0] for c in col_close]
     data = pd.Series(index=col_date, data=col_close, name=col_name)
     return data
@@ -52,7 +52,7 @@ def get_datas_from_db() -> pd.DataFrame:
     return df
 
 
-def get_result_from_db(method=0 ) -> list(dict()):
+def get_result_from_db(method=0) -> list(dict()):
     """[summary] dbのCalculateResultからデータを取得し、整形する
 
     Returns:
@@ -65,7 +65,8 @@ def get_result_from_db(method=0 ) -> list(dict()):
         try:
             result = CalculateResult.query.filter(
                 CalculateResult.name == n[0]).filter(CalculateResult.method_name == method).order_by(CalculateResult.date.desc()).first()
-            print(f"query by method = {method}, name = {n[0]}, result = {result}")
+            print(
+                f"query by method = {method}, name = {n[0]}, result = {result}")
             day = result.date
             day_str = day.strftime('%Y/%m/%d')
             result_dict = {
@@ -94,7 +95,7 @@ def make_graph(scale=True):
     """
     df = get_datas_from_db()
     cols = list(df.columns)
-    if(scale is True):
+    if (scale is True):
         for col in cols:
             df[col] = scalling(df[col])
 
@@ -140,7 +141,7 @@ def make_graph(scale=True):
 #         b[k] = (buy[k], int(33333 * buy[k]), sbi[0])
 #     return b
 
-def calculate_portfolio(method:ICalculateMethod) -> dict:
+def calculate_portfolio(method: ICalculateMethod) -> dict:
     """指定された計算方法でポートフォリオを計算する。また、所定のdict に整形する。
 
     Args:
@@ -150,7 +151,7 @@ def calculate_portfolio(method:ICalculateMethod) -> dict:
         dict: {"sp500":(0.1,3333,"sp500")}のような形のdict
     """
     try:
-       buy = method.calculate()
+        buy = method.calculate()
     except Exception:
         b = {"error": (0, 0, "Error")}
         return b
