@@ -7,17 +7,12 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 
 
-from db_config import DBConfig
+from db.db_config import DBConfig
 
-# todo dbのアップデートなどが動くか確認する
 
 Base = declarative_base()
 engine = create_engine(DBConfig.db_uri, echo=True)
 Session = sessionmaker(bind=engine)
-
-# app = Flask(__name__)
-# app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///nisa.db"
-# db = SQLAlchemy(app)
 
 
 class GraphData(Base):
@@ -28,7 +23,7 @@ class GraphData(Base):
     Args:
         db ([type]): [description]
     """
-    __table_name__ = "graph_data"
+    __tablename__ = "graph_data"
     date = Column(DateTime, primary_key=True)
     name = Column(String, primary_key=True)
     close = Column(Float)
@@ -42,7 +37,7 @@ class NameBase(Base):
     searchkeyword : pandas で検索するのにつかう第一引数
     """
 
-    __table_name__ = "name_base"
+    __tablename__ = "name_base"
     name = Column(String, primary_key=True)
     searchname = Column(String)
     searchkeyword = Column(String)
@@ -56,7 +51,7 @@ class CalculateResult(Base):
     resultint:数値形式の結果
     method_name: 計算方式
     """
-    __table_name__ = "calculate_result"
+    __tablename__ = "calculate_result"
     date = Column(DateTime, primary_key=True)
     name = Column(String, primary_key=True)
     resultpercent = Column(Float)
@@ -85,12 +80,12 @@ def CreateNameBase():
     name2disp["MSCI_World"] = ["先進国", 'VEA']
 
     session = Session()
-    for key in name2disp.keys():
-        n = NameBase(
+    for key, _ in name2disp.items():
+        name_base = NameBase(
             name=key,
             searchkeyword=name2disp[key][0],
             searchname=name2disp[key][1])
-        session.add(n)
+        session.add(name_base)
     try:
         session.commit()
     except Exception:
@@ -121,7 +116,7 @@ def CreateGraphData():
     except Exception:
         session.rollback()
     try:
-        gs = GraphData.query.filter(GraphData.updatetime != u).all()
+        gs = session.query(GraphData).filter(GraphData.updatetime != u).all()
         session.delete(gs)
     except Exception:
         session.rollback()
@@ -133,35 +128,38 @@ def UpdateGraphData():
     add_datas()で最終更新日+1日から今日までのデータを取得し、dbに値を加える
     insert で既にデータがある時は、insertしようとした日付に、updatetimeを更新する
     """
+    session = Session()
     try:
-        from_time = GraphData.query.with_entities(
-            GraphData.date).order_by(GraphData.date.desc()).first()[0]
+        from_time = session.query(
+            GraphData).order_by(GraphData.date.desc()).first().date
+        print(f"get_data: from_time={from_time}")
         now_time = datetime.datetime.now()
-        df = add_datas(from_time=from_time, now_time=now_time)
-    except Exception as e:
-        print(f"get_data 失敗 {e}")
+
+        close_of_updating = add_datas(from_time=from_time, now_time=now_time)
+    except Exception as error_of_update_graph_data:
+        print(f"get_data 失敗 {error_of_update_graph_data}")
         return
-    cols = list(df.columns)
+    cols = list(close_of_updating.columns)
     u = datetime.date.today()
 
     # GraphData にデータがあればupdate, なければinsert する
-    session = Session()
     for col in cols:
-        data = df[col]
-        for i, d in enumerate(data):
+        data = close_of_updating[col]
+        for i, close in enumerate(data):
             try:
                 ind = data.index[i]
                 new_close = GraphData(date=ind, name=col,
-                                      close=d, updatetime=u)
-                close = GraphData.query.filter_by(date=ind, name=col).first()
+                                      close=close, updatetime=u)
+                close = session.query(GraphData).filter_by(
+                    date=ind, name=col).first()
                 if (close):
                     session.merge(new_close)
                 else:
                     session.add(new_close)
                 session.commit()
 
-            except Exception as e:
-                print(f"UpdateGraphData でエラーが発生。{e}")
+            except Exception as error_of_update_graph_data:
+                print(f"UpdateGraphData でエラーが発生。{error_of_update_graph_data}")
                 session.rollback()
     return
 
@@ -176,8 +174,8 @@ def make_series(name: str, displayname: str, from_time: datetime.datetime = DBCo
         [type]pandas.Series: [description] index,name付きのpandas.Series
     """
     try:
-        gc = gspread.authorize(DBConfig.credentials)
-        sh = gc.open(DBConfig.file_name)
+        gspread_client = gspread.authorize(DBConfig.credentials)
+        spread_sheet = gspread_client.open(DBConfig.file_name)
         start = from_time
         start_year = start.year
         start_month = start.month
@@ -191,21 +189,21 @@ def make_series(name: str, displayname: str, from_time: datetime.datetime = DBCo
         end_day = end.day
         end_string = f"DATE({end_year},{end_month},{end_day})"
         command = f'=GoogleFinance("{name}","close",{start_string},{end_string},"DAILY")'
-        ws = sh.worksheet(DBConfig.sheet_name)
+        work_sheet = spread_sheet.worksheet(DBConfig.sheet_name)
         # セルの初期化
-        ws.update_acell("A1", "")
-        ws.update_acell("A1", command)
+        work_sheet.update_acell("A1", "")
+        work_sheet.update_acell("A1", command)
         time.sleep(0.1)
         # データの更新待ち,5秒経ったら諦める
         timer = time.time()
-        while ws.acell('A1').value != "Date":
+        while work_sheet.acell('A1').value != "Date":
             timer_end = time.time()
             if timer_end - timer > 5:
-                df = pd.Series()
-                ws.update_acell("A1", "")
+                df = pd.Series(name='Error_Series')
+                work_sheet.update_acell("A1", "")
                 return df
             continue
-        df = pd.DataFrame(ws.get_all_values())
+        df = pd.DataFrame(work_sheet.get_all_values())
         df.columns = list(df.loc[0, :])
         df.drop(0, inplace=True)
         df.reset_index(inplace=True)
@@ -218,9 +216,9 @@ def make_series(name: str, displayname: str, from_time: datetime.datetime = DBCo
         s.index = df["Date"].dt.date
         df = s
 
-    except Exception as e:
-        print(f"{make_series.__name__}: throws exception {e}")
-        df = pd.Series()
+    except Exception as error_of_make_series:
+        print(f"{make_series.__name__}: throws exception {error_of_make_series}")
+        df = pd.Series(name='Error_Series')
     finally:
         return df
 
@@ -232,20 +230,24 @@ def get_datas() -> pd.DataFrame:
         [type pandas.DataFrame]: [description] 取得したデータをまとめたdataframe
     """
     # 取得するデータの開始日と最終日を指定
-    names = NameBase.query.with_entities(
+    session = Session()
+    names = session.query(
         NameBase.searchname, NameBase.name).all()
-    df = pd.Series()
-    for i, n in enumerate(names):
+    close = pd.Series()
+    for i, name_information in enumerate(names):
         try:
+            name = name_information[0]
+            display_name = name_information[1]
             if i == 0:
-                base = pd.DataFrame(make_series(name=n[0], displayname=n[1]))
+                base = pd.DataFrame(make_series(
+                    name=name, displayname=display_name))
             else:
-                s = make_series(name=n[0], displayname=n[1])
-                df = base.join(s)
-                base = df
+                close_series = make_series(name=name, displayname=display_name)
+                close = base.join(close_series)
+                base = close
         except Exception:
             continue
-    return df
+    return close
 
 
 def add_datas(from_time: datetime.datetime, now_time: datetime.datetime) -> pd.DataFrame:
@@ -258,22 +260,25 @@ def add_datas(from_time: datetime.datetime, now_time: datetime.datetime) -> pd.D
     Returns:
         pd.DataFrame: [description]
     """
+    session = Session()
     from_time = from_time + datetime.timedelta(days=1)
-    names = NameBase.query.with_entities(
+    names = session.query(
         NameBase.searchname, NameBase.name).all()
-    df = pd.DataFrame()
-    for i, n in enumerate(names):
-        # join を使いたいので変な書き方する
+    close = pd.DataFrame()
+    for i, name_information in enumerate(names):
+        # pd.DataFrame.join を使いたいので変な書き方する
         try:
+            name = name_information[0]
+            display_name = name_information[1]
             if i == 0:
                 base = pd.DataFrame(make_series(
-                    name=n[0], displayname=n[1], from_time=from_time, now_time=now_time))
+                    name=name, displayname=display_name, from_time=from_time, now_time=now_time))
             else:
-                s = make_series(name=n[0], displayname=n[1],
-                                from_time=from_time, now_time=now_time)
-                df = base.join(s)
-                base = df
-        except Exception as e:
-            print(f"{add_datas.__name__}: throw exception {e}")
+                close_series = make_series(name=name, displayname=display_name,
+                                           from_time=from_time, now_time=now_time)
+                close = base.join(close_series)
+                base = close
+        except Exception as error_of_add_datas:
+            print(f"{add_datas.__name__}: throw exception {error_of_add_datas}")
             continue
-    return df
+    return close

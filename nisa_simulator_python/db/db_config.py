@@ -9,7 +9,7 @@ class DBConfig():
     """
     now = datetime.datetime.now()
     starttime = now - relativedelta.relativedelta(years=1)
-    db_uri = "sqlite:///nisa.db"
+    db_uri = "sqlite:///db/nisa.db"
 
     # Auth Setting
     json_file = "elite-advice-299001-7f9acc2225b6.json"
