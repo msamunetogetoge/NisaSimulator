@@ -138,11 +138,69 @@
 
 # todo データアップデート、グラフ作成、ポートフォリオ計算のapiパス、を作成、実装する
 
+from datetime import datetime
+import json
+from http import HTTPStatus
 from fastapi import FastAPI
-
+from db.db_config import DBConfig
+from db.Model import _GraphData
+from utils.calculate_methods import ICalculateMethod, get_method
+from utils.get_finance import calculate_portfolio, make_graph, get_datas_from_db
 app = FastAPI()
 
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+
+@app.get("/graph/")
+async def get_graph(start_time: str = None, end_time: str = None):
+    """ HTML string representation されたグラフ
+    """
+    if start_time is None or end_time is None:
+        db_config = DBConfig()
+        db_config.cls_update_now_start_time(now=datetime.now())
+        graph = make_graph()
+        return graph
+    else:
+        # todo: make_graphで、グラフ描画の範囲を指定できるようにする
+        graph = make_graph()
+        return graph
+
+
+@app.post("/update")
+async def update_date() -> HTTPStatus:
+    """データのアップデートをする。成功ならOk, 失敗ならInternalServerError
+
+    Returns:
+        HTTPStatus: hhtpステータスコード
+    """
+    db_config = DBConfig()
+    graph = _GraphData(db_config=db_config)
+    try:
+        graph.update()
+        return HTTPStatus.OK
+    except:
+        return HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@app.get("/portfolio/{method_name}")
+async def get_portfolio(method_name: str) -> str or HTTPStatus:
+    """ポートフォリオを計算して、jsonを返す
+
+    Args:
+        method_name (str): 計算方法
+
+    Returns:
+        str or HTTPStatus: 計算に成功したらjson, 失敗か、変な計算方法名が来たらBadRequest
+    """
+    # todo: method_name ="MaxSarpe"でgetを飛ばすと400が返ってくるので調査する
+    try:
+        method: ICalculateMethod = get_method(method_name=method_name)
+        data = get_datas_from_db()
+        print(data.head())
+        buy_list: dict = calculate_portfolio(method(data=data))
+        return json.dumps(buy_list)
+    except Exception:
+        return HTTPStatus.BAD_REQUEST

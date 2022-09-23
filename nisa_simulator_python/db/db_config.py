@@ -21,3 +21,12 @@ class DBConfig():
     sheet_name = "ToDB"
     credentials = ServiceAccountCredentials.from_json_keyfile_name(
         json_file, scope)
+
+    def cls_update_now_start_time(self, now: datetime.datetime) -> None:
+        """DBConfig.now, DBConfig.starttime を更新する
+
+        Args:
+            now (datetime.datetime): 現在の時刻
+        """
+        self.now = now
+        self.starttime = self.now - relativedelta.relativedelta(years=1)

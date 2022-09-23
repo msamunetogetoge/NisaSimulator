@@ -5,7 +5,7 @@ from typing import OrderedDict
 from pypfopt import expected_returns, risk_models
 from pypfopt.efficient_frontier import EfficientFrontier
 
-from calculate_config import CalculateConfig
+from utils.calculate_config import CalculateConfig
 
 
 class ICalculateMethod(metaclass=ABCMeta):
@@ -45,12 +45,15 @@ class ICalculateMethod(metaclass=ABCMeta):
         pass
 
 
-efficient_return = next(
-    method for method in CalculateConfig.methods if method["method_name"] == "EfficientReturn").informations
-min_volatility = next(
-    method for method in CalculateConfig.methods if method["method_name"] == "MinVolatility").informations
-max_sharpe = next(
-    method for method in CalculateConfig.methods if method["method_name"] == "MaxSharpe").informations
+efficient_return_dict = next(
+    method for method in CalculateConfig.methods if method["method_name"] == "EfficientReturn")
+efficient_return = efficient_return_dict["informations"]
+min_volatility_dict = next(
+    method for method in CalculateConfig.methods if method["method_name"] == "MinVolatility")
+min_volatility = min_volatility_dict["informations"]
+max_sharpe_dict = next(
+    method for method in CalculateConfig.methods if method["method_name"] == "MaxSharpe")
+max_sharpe = max_sharpe_dict["informations"]
 
 
 class EfficientReturn(ICalculateMethod):
@@ -60,7 +63,7 @@ class EfficientReturn(ICalculateMethod):
         ICalculateMethod (_type_): _description_
     """
 
-    def __init__(self, data: DataFrame, name: str = efficient_return.name, index: int = efficient_return.index, target_return: float = 0.1) -> None:
+    def __init__(self, data: DataFrame, name: str = efficient_return["name"], index: int = efficient_return["index"], target_return: float = 0.1) -> None:
         """初期化時、データから平均や分散を計算する。
 
         Args:
@@ -115,7 +118,7 @@ class MinVolatility(ICalculateMethod):
         ICalculateMethod (_type_): _description_
     """
 
-    def __init__(self, data: DataFrame, name: str = min_volatility.name, index: int = min_volatility.index) -> None:
+    def __init__(self, data: DataFrame, name: str = min_volatility["name"], index: int = min_volatility["index"]) -> None:
         """初期化時、データから平均や分散を計算する。
 
         Args:
@@ -168,7 +171,7 @@ class MaxSharpe(ICalculateMethod):
         ICalculateMethod (_type_): _description_
     """
 
-    def __init__(self, data: DataFrame, name: str = max_sharpe.name, index: int = max_sharpe.index, risk_free_rate: float = 0.02) -> None:
+    def __init__(self, data: DataFrame, name: str = max_sharpe["name"], index: int = max_sharpe["index"], risk_free_rate: float = 0.02) -> None:
         """初期化時、データから平均や分散を計算する。
 
         Args:
@@ -209,8 +212,37 @@ class MaxSharpe(ICalculateMethod):
         Returns:
             OrderedDict: {sp500: 20000, topix: 13333}のようなデータ
         """
-        if data != None:
-            self.mean = expected_returns.mean_historical_return(data)
-            self.cov = risk_models.sample_cov(data)
-        ef = EfficientFrontier(self.mean, self.cov)
-        return ef.max_sharpe(risk_free_rate=0.02)
+        try:
+            if data is not None:
+                self.mean = expected_returns.mean_historical_return(data)
+                self.cov = risk_models.sample_cov(data)
+            ef = EfficientFrontier(self.mean, self.cov)
+            return ef.max_sharpe(risk_free_rate=0.02)
+        except Exception as error_of_calculate_by_max_sharpe:
+            print(
+                f"In {self.calculate.__name__} error occured :{error_of_calculate_by_max_sharpe}")
+            print("Calculate portfolio by MinVolatility")
+            ef = EfficientFrontier(self.mean, self.cov)
+            return ef.min_volatility()
+
+
+def get_method(method_name: str) -> ICalculateMethod or Exception:
+    """method_name で指定した計算方法のクラスを返す
+
+    Args:
+        method_name (str): 計算方法の名前
+
+    Raises:
+        Exception: 変な名前が指定されたときに排出される
+
+    Returns:
+        ICalculateMethod or Exception: 計算を行うクラス
+    """
+    if method_name == "EfficientReturn":
+        return EfficientReturn
+    elif method_name == "MinVolatility":
+        return MinVolatility
+    elif method_name == "MaxSharpe":
+        return MaxSharpe
+    else:
+        raise Exception("リストに無い計算方法が指定された")

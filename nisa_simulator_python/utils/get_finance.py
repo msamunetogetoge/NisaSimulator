@@ -4,13 +4,23 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from calculate_methods import ICalculateMethod
-from db.Model import GraphData, NameBase, CalculateResult
+from utils.calculate_methods import ICalculateMethod
+from db.Model import GraphData, NameBase, CalculateResult, Session
 
 # todo query_with_entity 等がsqlalchemy でも使えるかチェックする
 
+session = Session()
+
 
 def scalling(X: pd.Series) -> pd.Series:
+    """与えられたpd.Series のデータを正規化(平均を0)にして、値を大体-1 ~ 1の間に収める
+
+    Args:
+        X (pd.Series): 数値データ
+
+    Returns:
+        pd.Series:平均を調整したデータ
+    """
     return (X - X.mean()) / X.mean()
 
 
@@ -23,10 +33,10 @@ def get_series_from_db(col_name: str) -> pd.Series:
     Returns:
         pd.Series: [description] index: GraphData.date, name: GraphData.name, value GraphData.close
     """
-    col_date = GraphData.query.with_entities(
+    col_date = session.query(
         GraphData.date).filter_by(name=col_name).all()
     col_date = [d[0] for d in col_date]
-    col_close = GraphData.query.with_entities(
+    col_close = session.query(
         GraphData.close).filter_by(name=col_name).all()
     col_close = [c[0] for c in col_close]
     data = pd.Series(index=col_date, data=col_close, name=col_name)
@@ -34,13 +44,13 @@ def get_series_from_db(col_name: str) -> pd.Series:
 
 
 def get_datas_from_db() -> pd.DataFrame:
-    """[summary] dbからデータを読み込む
+    """[summary] dbからGraphDataを読み込む
 
     Returns:
         [type]pd.DataFrame: [description]
     """
     df = pd.Series()
-    col_names = NameBase.query.with_entities(NameBase.name).all()
+    col_names = session.query(NameBase.name).all()
     for i, col in enumerate(col_names):
         col_name = col[0]
         if i == 0:
@@ -59,14 +69,12 @@ def get_result_from_db(method=0) -> list(dict()):
         [type]list(dict) d: [description]d[0]:string"yyyy/mm/dd/",d[1]:string"name" d[2]:float calculateresultpercent, d[3]: int calculateresultint
     """
     result_list = list(dict())
-    names = NameBase.query.with_entities(
+    names = session.query(
         NameBase.name, NameBase.searchkeyword).all()
     for n in names:
         try:
-            result = CalculateResult.query.filter(
+            result = session.query(CalculateResult).filter(
                 CalculateResult.name == n[0]).filter(CalculateResult.method_name == method).order_by(CalculateResult.date.desc()).first()
-            print(
-                f"query by method = {method}, name = {n[0]}, result = {result}")
             day = result.date
             day_str = day.strftime('%Y/%m/%d')
             result_dict = {
@@ -77,14 +85,17 @@ def get_result_from_db(method=0) -> list(dict()):
                 "resultpercent": result.resultpercent,
                 "resultint": result.resultint}
             result_list.append(result_dict)
-        except BaseException:
+        except Exception:
             # logger.error(f"{n[1]} がありません。")
             pass
     result_list.sort(key=lambda x: x["resultint"], reverse=True)
     return result_list
 
+# todo: いつからいつまでのグラフを作成するのか選べるようにする。
+# min = datetime.now()から1年前, max = now
 
-def make_graph(scale=True):
+
+def make_graph(scale=True) -> str:
     """[summary]dbからデータを読み込んでhtmlで表示する為のグラフを描く
 
     Args:
@@ -102,46 +113,11 @@ def make_graph(scale=True):
     fig = make_subplots()
     for col in cols:
         fig.add_trace(go.Scatter(x=df.index, y=df[col], name=col))
-    plot_fig = fig.to_html(include_plotlyjs=False)
+    plot_fig = fig.to_html(include_plotlyjs='cdn')
     return plot_fig
 
 
-# def calculate_portfolio(df, method=0) -> dict:
-#     """[summary]
-#     Args:
-#         df ([pandas.DataFrame]): [description]
-#     Returns:
-#         [OrderedDict]: [description]
-#     """
-#     mu = expected_returns.mean_historical_return(df)
-#     S = risk_models.sample_cov(df)
-
-#     ef = EfficientFrontier(mu, S)
-#     # method の値によって使うやつを変える
-#     print(f"method = {method}")
-#     try:
-#         if method == 0:
-#             buy = ef.efficient_return(target_return=0.1)
-#         elif method == 1:
-#             print(f"method is {method} in elif metho == 1")
-#             buy = ef.min_volatility()
-#         elif method == 2:
-#             buy = ef.max_sharpe(risk_free_rate=0.02)
-#         else:
-#             buy = ef.efficient_return(target_return=0.1)
-#     except Exception:
-#         b = {"error": (0, 0, "Error")}
-#         return b
-
-#     b = dict()
-#     for k in buy.keys():
-#         sbi = NameBase.query.with_entities(
-#             NameBase.searchkeyword).filter(
-#             NameBase.name == k).first()
-#         b[k] = (buy[k], int(33333 * buy[k]), sbi[0])
-#     return b
-
-def calculate_portfolio(method: ICalculateMethod) -> dict:
+def calculate_portfolio(method: ICalculateMethod) -> dict or Exception:
     """指定された計算方法でポートフォリオを計算する。また、所定のdict に整形する。
 
     Args:
@@ -149,17 +125,19 @@ def calculate_portfolio(method: ICalculateMethod) -> dict:
 
     Returns:
         dict: {"sp500":(0.1,3333,"sp500")}のような形のdict
+        Exception: 計算失敗時のエラー
     """
     try:
         buy = method.calculate()
-    except Exception:
-        b = {"error": (0, 0, "Error")}
-        return b
+    except Exception as error_of_calculate:
+        print(
+            f"In {calculate_portfolio.__name__} error occured :{error_of_calculate}")
+        raise error_of_calculate
 
-    b = dict()
+    buy_dict = dict()
     for k in buy.keys():
-        sbi = NameBase.query.with_entities(
+        sbi = session.query(
             NameBase.searchkeyword).filter(
             NameBase.name == k).first()
-        b[k] = (buy[k], int(33333 * buy[k]), sbi[0])
-    return b
+        buy_dict[k] = (buy[k], int(33333 * buy[k]), sbi[0])
+    return buy_dict
