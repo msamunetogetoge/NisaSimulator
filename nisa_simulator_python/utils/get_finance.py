@@ -1,5 +1,9 @@
+from dataclasses import dataclass
+from typing import List
 import pandas as pd
+import numpy as np
 
+from dataclasses_json import dataclass_json
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -47,7 +51,7 @@ def get_datas_from_db() -> pd.DataFrame:
     """[summary] dbからGraphDataを読み込む
 
     Returns:
-        [type]pd.DataFrame: [description]
+        [type]pd.DataFrame: index: datetime64[ns] closeを取得した日付('2021-09-15'など), cols: インデックスの名前(NameBase.name全体)
     """
     df = pd.Series()
     col_names = session.query(NameBase.name).all()
@@ -115,6 +119,58 @@ def make_graph(scale=True) -> str:
         fig.add_trace(go.Scatter(x=df.index, y=df[col], name=col))
     plot_fig = fig.to_html(include_plotlyjs='cdn')
     return plot_fig
+
+# todo labels, IndividualGraphData  を格納するdataclassを作ってmake_graph_dataでデータを作成する
+
+
+@dataclass_json
+@dataclass
+class IndividualChartData():
+    """ front のvue-charjs でグラフを描くためのデータの一部
+    label: インデックス名
+    data: close
+    """
+    label: str
+    data: List[float]
+    borderColor: str
+
+
+@dataclass_json
+@dataclass
+class HoleGraphData():
+    """ front のvue-charjs でグラフを描くためのデータ
+    labels: closeを取得している日付
+    datasets: closeのデータ達
+    """
+    labels: List[str]
+    datasets: List[IndividualChartData]
+
+
+def make_chart_data(scale=True) -> HoleGraphData:
+    """[summary]dbからデータを読み込んでvue-chartjsでグラフを表示する為のデータを作成して返す
+
+    Args:
+        minimax (bool, optional): [description]. Defaults to True.
+
+    Returns:
+        [type]: [description]
+    """
+    df = get_datas_from_db()
+    cols = list(df.columns)
+    hole_data: List[IndividualChartData] = []
+    if scale is True:
+        for col in cols:
+            df[col] = scalling(df[col])
+    # json でNAN部分はnullにしたいので、変換
+    df = df.replace([np.nan], [None])
+    # vue-chartjs で描画に使う色たち
+    color_parret = ["red", "green", "blue",
+                    "yellow", "orange", "gray", "purple"]
+    for i, col in enumerate(cols):
+        individual_data = IndividualChartData(
+            label=col, data=df[col].values.tolist(), borderColor=color_parret[i])
+        hole_data.append(individual_data)
+    return HoleGraphData(labels=df.index.strftime("%Y-%m-%d").to_list(), datasets=hole_data)
 
 
 def calculate_portfolio(method: ICalculateMethod) -> dict or Exception:

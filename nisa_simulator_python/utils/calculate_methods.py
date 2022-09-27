@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractclassmethod
 from pandas import DataFrame
-from typing import OrderedDict
+from typing import OrderedDict, List
 
 from pypfopt import expected_returns, risk_models
 from pypfopt.efficient_frontier import EfficientFrontier
@@ -246,3 +246,43 @@ def get_method(method_name: str) -> ICalculateMethod or Exception:
         return MaxSharpe
     else:
         raise Exception("リストに無い計算方法が指定された")
+
+
+def get_calculate_methods() -> List[str]:
+    """計算時に使うcalculate_methodの名前を返す
+
+    Returns:
+        List[str]: CalculateConfig.methods のmethod_nameのリスト
+    """
+    return [method.get("method_name") for method in CalculateConfig.methods]
+
+
+def get_method_names() -> List[str]:
+    """計算時に使えすcalculate_methodの名前を返す
+
+    Returns:
+        List[str]: CalculateConfig.methods.informations.nameのリスト
+    """
+    return [method.get("informations")["name"] for method in CalculateConfig.methods]
+
+
+def convert_method_names(name: str) -> str:
+    """分散最小化(リターン制約あり) -> EfficientReturn という変換を行う
+
+    Args:
+        method_name (str): _description_
+
+    Raises:
+        Exception: _description_
+
+    Returns:
+        str: _description_
+    """
+    try:
+        method_dict = next(
+            method for method
+            in CalculateConfig.methods if (method["informations"])["name"] == name)
+        method_name = method_dict["method_name"]
+        return method_name
+    except:
+        raise Exception(f"リストに無い計算方法が指定された. name= {name}")
