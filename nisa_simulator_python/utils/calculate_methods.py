@@ -285,4 +285,5 @@ def convert_method_names(name: str) -> str:
         method_name = method_dict["method_name"]
         return method_name
     except:
-        raise Exception(f"リストに無い計算方法が指定された. name= {name}")
+        raise Exception(
+            f"In {convert_method_names.__name__}. リストに無い計算方法が指定された. name= {name}")

@@ -136,7 +136,6 @@
 # if __name__ == "__main__":
 #     app.run(host='127.0.0.1', port=8080, debug=True)
 
-# todo データアップデート、グラフ作成、ポートフォリオ計算のapiパス、を作成、実装する
 
 from datetime import datetime
 import json
@@ -215,15 +214,15 @@ async def get_portfolio(name: str) -> json or HTTPStatus:
     Returns:
         str or HTTPStatus: 計算に成功したらjson, 失敗か、変な計算方法名が来たらBadRequest
     """
-    # todo: method_name ="MaxSarpe"でgetを飛ばすと400が返ってくるので調査する
     try:
         method_name = convert_method_names(name=name)
         method: ICalculateMethod = get_method(method_name=method_name)
         data = get_datas_from_db()
-        print(data.head())
-        buy_list: dict = calculate_portfolio(method(data=data))
-        return json.dumps(buy_list, ensure_ascii=False)
-    except Exception:
+        buy_list = calculate_portfolio(method(data=data))
+        buy_list_json = buy_list.to_json(ensure_ascii=False)
+        return buy_list_json
+    except Exception as e:
+        print(e)
         return HTTPStatus.BAD_REQUEST
 
 
@@ -232,20 +231,16 @@ async def get_portfolio_header() -> json:
     """ portfolioを計算した時に表示する図表のヘッダーを返す
 
     Returns:
-        json: headers: [
-        {
-          text: 'Dessert (100g serving)',
-          align: 'start',
-          sortable: false,
-          value: 'name',
-        },
-        { text: 'Calories', value: 'calories' },
-        { text: 'Fat (g)', value: 'fat' },
-        { text: 'Carbs (g)', value: 'carbs' },
-        { text: 'Protein (g)', value: 'protein' },
-        { text: 'Iron (%)', value: 'iron' },
-      ]
-      のようなjson
+        json: {"headers":
+                [
+                    {"text": "銘柄", "value": "index_name", "align": "start", "sortable": "false"},
+                    {"text": "購入割合", "value": "percent", "align": null, "sortable": "true"},
+                    {"text": "購入額", "value": "yen", "align": null, "sortable": "true"},
+                    {"text": "検索パラメータ", "value": "search_param", "align": null, "sortable": "true"}
+                ]
+                }
+            のようなjson
     """
     headers = create_header()
-    return headers.to_json()
+    headers_json = headers.to_json(ensure_ascii=False)
+    return headers_json

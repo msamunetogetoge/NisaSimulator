@@ -12,7 +12,7 @@ from db.db_config import DBConfig
 
 
 Base = declarative_base()
-engine = create_engine(DBConfig.db_uri, echo=True)
+engine = create_engine(DBConfig.db_uri, echo=False)
 Session = sessionmaker(bind=engine)
 DbConfig: DBConfig = DBConfig()
 

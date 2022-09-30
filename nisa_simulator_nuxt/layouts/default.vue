@@ -52,6 +52,17 @@
     </v-app-bar>
     <v-main>
       <v-container>
+        <v-dialog v-model="dialog" persistent width="300">
+          <v-card height="190" class="text-center">
+            <v-progress-circular
+              :indeterminate="dialog"
+              :size="100"
+              color="primary"
+              class="mt-4"
+              >Updating...
+            </v-progress-circular>
+          </v-card>
+        </v-dialog>
         <Nuxt />
       </v-container>
     </v-main>
@@ -65,11 +76,15 @@
   </v-app>
 </template>
 
-<script>
-export default {
+<script lang="ts">
+import Vue from 'vue'
+export default Vue.extend({
   name: 'DefaultLayout',
+
   data() {
     return {
+      url: '/api',
+      dialog: false,
       clipped: false,
       drawer: false,
       fixed: false,
@@ -103,12 +118,20 @@ export default {
       right: true,
       rightDrawer: false,
       title: 'Nisa Simulator',
-      updateData() {
-        // dbのデータを更新する処理
-        // python側のapi準備待ち
-        alert('データを更新しました')
-      },
     }
   },
-}
+  methods: {
+    async updateData() {
+      this.dialog = true
+      await this.$axios
+        .$post(this.url + '/update')
+        .then(function () {})
+        .catch(function (error) {
+          console.error(error)
+          alert('データ更新に失敗しました')
+        })
+      this.dialog = false
+    },
+  },
+})
 </script>

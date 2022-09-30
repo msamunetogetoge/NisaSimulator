@@ -11,7 +11,6 @@ from plotly.subplots import make_subplots
 from utils.calculate_methods import ICalculateMethod
 from db.Model import GraphData, NameBase, CalculateResult, Session
 
-# todo query_with_entity 等がsqlalchemy でも使えるかチェックする
 
 session = Session()
 
@@ -120,8 +119,6 @@ def make_graph(scale=True) -> str:
     plot_fig = fig.to_html(include_plotlyjs='cdn')
     return plot_fig
 
-# todo labels, IndividualGraphData  を格納するdataclassを作ってmake_graph_dataでデータを作成する
-
 
 @dataclass_json
 @dataclass
@@ -173,7 +170,26 @@ def make_chart_data(scale=True) -> HoleGraphData:
     return HoleGraphData(labels=df.index.strftime("%Y-%m-%d").to_list(), datasets=hole_data)
 
 
-def calculate_portfolio(method: ICalculateMethod) -> dict or Exception:
+@dataclass_json
+@dataclass
+class Portfolio:
+    """ front側でデータを表示する為のクラス。Headers に格納されるvalueと同じメンバーになっている。
+    """
+    index_name: str
+    percent: float
+    yen: int
+    search_param: str
+
+
+@dataclass_json
+@dataclass
+class Portfolios:
+    """ portfolioをまとめるためのクラス
+    """
+    portfolio: List[Portfolio]
+
+
+def calculate_portfolio(method: ICalculateMethod) -> Portfolios or Exception:
     """指定された計算方法でポートフォリオを計算する。また、所定のdict に整形する。
 
     Args:
@@ -189,11 +205,21 @@ def calculate_portfolio(method: ICalculateMethod) -> dict or Exception:
         print(
             f"In {calculate_portfolio.__name__} error occured :{error_of_calculate}")
         raise error_of_calculate
-
-    buy_dict = dict()
-    for k in buy.keys():
-        sbi = session.query(
-            NameBase.searchkeyword).filter(
-            NameBase.name == k).first()
-        buy_dict[k] = (buy[k], int(33333 * buy[k]), sbi[0])
-    return buy_dict
+    portfolio: Portfolio
+    portfolios: List[Portfolio] = []
+    try:
+        for k in buy.keys():
+            sbi_serach_name = session.query(
+                NameBase.searchkeyword).filter(
+                NameBase.name == k).first()
+            purchace_percent = buy[k]
+            purchace_yen = int(33333 * purchace_percent)
+            portfolio = Portfolio(index_name=k, percent=purchace_percent,
+                                  yen=purchace_yen, search_param=sbi_serach_name[0])
+            portfolios.append(portfolio)
+        _portforios = Portfolios(portfolio=portfolios)
+    except Exception as e:
+        print(
+            f"In {calculate_portfolio.__name__} error occured :{e}")
+        raise e
+    return _portforios
