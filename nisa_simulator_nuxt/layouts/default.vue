@@ -44,10 +44,6 @@
     </v-navigation-drawer>
     <v-app-bar :clipped-left="clipped" fixed app>
       <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <v-btn icon @click.stop="miniVariant = !miniVariant">
-        <v-icon>mdi-{{ `chevron-${miniVariant ? 'right' : 'left'}` }}</v-icon>
-      </v-btn>
-
       <v-toolbar-title v-text="title" />
     </v-app-bar>
     <v-main>
@@ -114,9 +110,6 @@ export default Vue.extend({
         icon: 'mdi-update',
         title: 'データ更新',
       },
-      miniVariant: false,
-      right: true,
-      rightDrawer: false,
       title: 'Nisa Simulator',
     }
   },
