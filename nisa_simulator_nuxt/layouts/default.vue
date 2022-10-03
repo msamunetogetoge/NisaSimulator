@@ -1,5 +1,3 @@
-<!-- todo -->
-<!-- updataData を実装する。ただし、python側でapiが準備出来てから。 -->
 <template>
   <v-app dark>
     <v-navigation-drawer
