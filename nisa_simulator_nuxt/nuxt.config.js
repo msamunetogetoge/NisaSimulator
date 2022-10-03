@@ -49,9 +49,10 @@ export default {
     baseURL: '/',
     proxy: true,
   },
+  // todo: proxiでcloudrun の時の設定を追加する
   proxy: {
     '/api/': {
-      target: 'http://localhost:8000',
+      target: 'https://nisasimulatorpython-wkceedmfpq-nn.a.run.app',
       pathRewrite: { '^/api/': '/' }
     }
   },

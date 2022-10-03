@@ -3,7 +3,7 @@
     <v-col cols="12" sm="8" md="6">
       <v-card>
         <v-card-title class="headline">
-          Welcome to the NISA SIMULATOR
+          Welcome to NISA SIMULATOR
         </v-card-title>
         <v-card-text>
           <v-list>
